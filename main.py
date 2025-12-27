@@ -4,6 +4,8 @@ import discord
 import config
 import leveling_system as ls
 import sqlite3
+import economy as ec
+import random
 from datetime import datetime
 from discord.ext import commands
 from dotenv import load_dotenv
@@ -112,4 +114,70 @@ else:
     print("❌ Błąd: Nie znaleziono tokenu DISCORD_TOKEN")
     print("Dodaj token do pliku .env lub zmiennych środowiskowych")
 
+@bot.command()
+@commands.cooldown(1, 60, commands.BucketType.user)
+async def job(ctx):
+    amount = random.randint(20,100)
+    ec.add_money(ctx.author.id, amount)
+    await ctx.send(f"{ctx.author.mention} zarobił {amount}💰!")
+@job.error
+async def job_error(ctx, error):
+    if isinstance(error, commands.CommandOnCooldown):
+        remaining = ec.check_cooldown(ctx.author.id, "job", 60)
+        if remaining > 0:
+            await ctx.send(f"⏳ Poczekaj {ec.format_time(remaining)}")
+            return
 
+@bot.command()
+@commands.cooldown(1, 120, commands.BucketType.user)
+async def crime(ctx):
+    choice = random.randint(0,1)
+    if choice == 1:
+        amount = random.randint(200,500)
+        ec.add_money(ctx.author.id, amount)
+    else:
+        amount = random.randint(200,400)
+        ec.remove_money(ctx.author.id, amount)
+@crime.error
+async def crime_error(ctx, error):
+    if isinstance(error, commands.CommandOnCooldown):
+        remaining = ec.check_cooldown(ctx.author.id, "crime", 120)
+        if remaining > 0:
+            await ctx.send(f"⏳ Poczekaj {ec.format_time(remaining)}")
+            return
+
+@bot.command()
+async def bal(ctx):
+    balance = ec.get_balance(ctx.author.id)
+    await ctx.send(f"{ctx.author.mention} ma na koncie {balance}")
+
+@bot.command()
+@commands.cooldown(1, 86400, commands.BucketType.user)
+async def daily(ctx):
+    amount = 500
+    ec.add_money(ctx.author.id, amount)
+    await ctx.send(f"{ctx.author.mention} odebrał codzienną nagrodę!")
+@daily.error
+async def daily_error(ctx, error):
+    if isinstance(error, commands.CommandOnCooldown):
+        remaining = ec.check_cooldown(ctx.author.id, "daily", 86400)
+        if remaining > 0:
+            await ctx.send(f"⏳ Poczekaj {ec.format_time(remaining)}")
+            return
+
+@bot.command()
+async def top(ctx):
+    data = ec.get_leaderboard()
+
+    if not data:
+        await ctx.send("Brak danych")
+        return
+
+    embed = discord.Embed(title="TOP 10 Najbogatszych", color=discord.Color.gold())
+
+    for i, (user_id, balance) in enumerate(data, start=1):
+        user = bot.get_user(user_id)
+        name = user.name if user else f"ID {user_id}"
+        embed.add_field(name=f"{i}. {name}", value=f"💰 {balance}", inline=False)
+
+    await ctx.send(embed=embed)

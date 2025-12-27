@@ -24,12 +24,6 @@ intents.guilds = True
 bot = commands.Bot(command_prefix='?', intents=intents,)
 print("Poprawnie zainicjowano moduł bota.")
 
-if not os.path.exists(config.DATABASE_DIR):
-    os.makedirs(config.DATABASE_DIR)
-    print(f"Utworzono katalog: {config.DATABASE_DIR}")
-else:
-    print(f"Katalog baz danych: {config.DATABASE_DIR} istnieję - pomijam")
-
 @bot.event
 async def on_ready():
     print('------')

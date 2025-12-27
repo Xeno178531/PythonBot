@@ -45,10 +45,15 @@ lvlMain = DiscordLevelingSystem(rate=1,
 #                                    delete_after=None,
 #                                    )
 
-
+if not os.path.exists(config.DATABASE_DIR):
+    os.makedirs(config.DATABASE_DIR)
+    print(f"Utworzono katalog: {config.DATABASE_DIR}")
+else:
+    print(f"Katalog baz danych: {config.DATABASE_DIR} istnieję - pomijam")
+    
 if not os.path.exists(lvlDbFile):
     print("Tworzę nową bazę danych...")
-    DiscordLevelingSystem.create_database_file(config.DATABASE_DIR)
+    lvlMain.create_database_file(config.DATABASE_DIR)
     print(f"Utworzono: {lvlDbFile}")
 else:
     print(f"Katalog baz danych: {config.DATABASE_DIR} istnieję - pomijam")

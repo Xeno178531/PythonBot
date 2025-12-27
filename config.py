@@ -1,1 +1,1 @@
-DATABASE_DIR = 'Data'
+DATABASE_DIR = 'Data/'

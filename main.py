@@ -41,6 +41,7 @@ async def on_ready():
 
 @bot.event
 async def on_message(message):
+    await bot.process_commands(message)
     await ls.lvlMain.award_xp(amount=[15, 25], message=message, refresh_name=True)  #Add EXP
 
 @bot.tree.command(

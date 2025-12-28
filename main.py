@@ -104,20 +104,6 @@ async def on_member_remove(member):
         await channel.send(embed=embed)
 
 #Komendy
-@bot.tree.command(name="quotes", description="Pokazuje losowy cytat")
-async def quotes(interaction: discord.Interaction):
-    embed = discord.Embed(title="Cytat", description=random.choice(quotesls), color=0x3d35db)
-    await interaction.response.send_message(embed=embed)
-
-@bot.tree.command(name="botinfo", description="Pokazuje informacje o bocie")
-async def botinfo(interaction: discord.Interaction):
-    mem = psutil.virtual_memory()
-    percent_ram = mem.percent
-    percent_cpu = psutil.cpu_percent(interval=True)
-    ping = round(bot.latency*1000)
-    embed = discord.Embed(title="📚 Info", description=f"🏓 Ping: **{ping}ms**\n🧠 Użycie RAM: **{percent_ram}%**\n⚙️ Użycie CPU: **{percent_cpu}%**", color=0xf50000)
-    await interaction.response.send_message(embed=embed)
-
 @bot.tree.command(
     name="hello",
     description="Powiedz cześć!")
@@ -182,6 +168,38 @@ async def lvl_top_command(interactions: discord.Interaction):
         # noinspection PyUnresolvedReferences
         await interactions.response.send_message(data) #Topka
 
+@bot.tree.command(name="poll", description="Tworzy ankiete")
+async def poll(interaction: discord.Interaction, title: str, question: str):
+    embed = discord.Embed(title=title, description=question)
+    embed.set_footer(text=f"Ankiete utworzył {interaction.user}")
+    await interaction.response.send_message(embed=embed)
+    poll_msg = await interaction.original_response()
+    await poll_msg.add_reaction("👍")
+    await poll_msg.add_reaction("👎")
+
+@bot.tree.command(name="quote", description="Tworzy cytat")
+async def quote(interaction: discord.Interaction, quote: str):
+    embed = discord.Embed(title="Cytat", description=quote, color=0x3d35db)
+    await interaction.response.send_message(embed=embed)
+    quote_msg = await interaction.original_response()
+    await quote_msg.add_reaction("❤️")
+    await quote_msg.add_reaction("💀")
+    await quote_msg.add_reaction("🤮")
+
+@bot.tree.command(name="quotes", description="Pokazuje losowy cytat")
+async def quotes(interaction: discord.Interaction):
+    embed = discord.Embed(title="Cytat", description=random.choice(quotesls), color=0x3d35db)
+    await interaction.response.send_message(embed=embed)
+
+@bot.tree.command(name="botinfo", description="Pokazuje informacje o bocie")
+async def botinfo(interaction: discord.Interaction):
+    mem = psutil.virtual_memory()
+    percent_ram = mem.percent
+    percent_cpu = psutil.cpu_percent(interval=True)
+    ping = round(bot.latency*1000)
+    embed = discord.Embed(title="📚 Info", description=f"🏓 Ping: **{ping}ms**\n🧠 Użycie RAM: **{percent_ram}%**\n⚙️ Użycie CPU: **{percent_cpu}%**", color=0xf50000)
+    await interaction.response.send_message(embed=embed)
+
 @bot.tree.command(name="serverinfo", description="Pokazuje informacje o serwerze")
 async def serverinfo(interaction: discord.Interaction):
     guild = interaction.guild
@@ -199,112 +217,109 @@ async def setnotifications(interaction: discord.Interaction, channel: discord.Te
     save_config(config)
     await interaction.response.send_message(f"✅ Kanał powitań/pożegnań ustawiony na {channel.mention}", ephemeral=True)
 
-@bot.tree.command(name="additem", description="Dodaje przedmiot do sklepu")
-@app_commands.checks.has_permissions(administrator=True)
-async def additem(interaction: discord.Interaction, name: str, price:str):
-    ec.add_item(name, price)
-    await interaction.response.send_message(f"Przedmiot {name} został dodany do sklepu!")
-
 #Ekonomia
-@bot.command()
-@commands.cooldown(1, 60, commands.BucketType.user)
-async def job(ctx):
-    amount = random.randint(20,100)
-    ec.add_money(ctx.author.id, amount)
-    await ctx.send(f"{ctx.author.mention} zarobił {amount}💰!")
-@job.error
-async def job_error(ctx, error):
-    if isinstance(error, commands.CommandOnCooldown):
-        remaining = ec.check_cooldown(ctx.author.id, "job", 60)
-        if remaining > 0:
-            await ctx.send(f"⏳ Poczekaj {ec.format_time(remaining)}")
-            return
+@bot.tree.command(name="work", description="Zarabiasz gotówke serwerową")
+async def work(interaction: discord.Interaction):
+    user_id = interaction.user.id
+    cooldown = 60
 
-@bot.command()
-@commands.cooldown(1, 120, commands.BucketType.user)
-async def crime(ctx):
+    remaining = ec.check_cooldown(user_id, "work", cooldown)
+    if remaining > 0:
+        await interaction.response.send_message(f"⏳ Poczekaj jeszcze **{ec.format_time(remaining)}**", ephemeral=True)
+        return
+    
+    amount = random.randint(20,100)
+    ec.add_money(user_id, amount)
+    ec.set_cooldown(user_id, "work")
+    await interaction.response.send_message(f"{interaction.user.mention} zarobił {amount}💰!")
+
+@bot.tree.command(name="crime", description="Odbierz dzienną nagrodę")
+async def crime(interaction: discord.Interaction):
+    user_id = interaction.user.id
+    cooldown = 120
+
+    remaining = ec.check_cooldown(user_id, "crime", cooldown)
+    if remaining > 0:
+        await interaction.response.send_message(f"⏳ Poczekaj jeszcze **{ec.format_time(remaining)}**", ephemeral=True)
+        return
+    
     choice = random.randint(0,1)
     if choice == 1:
         amount = random.randint(200,500)
-        ec.add_money(ctx.author.id, amount)
+        ec.add_money(interaction.user.id, amount)
+        ec.set_cooldown(user_id, "crime")
+        await interaction.response.send_message(f"Udało się! {interaction.user.mention} ukradł/a {amount}.")
     else:
         amount = random.randint(200,400)
-        ec.remove_money(ctx.author.id, amount)
-@crime.error
-async def crime_error(ctx, error):
-    if isinstance(error, commands.CommandOnCooldown):
-        remaining = ec.check_cooldown(ctx.author.id, "crime", 120)
-        if remaining > 0:
-            await ctx.send(f"⏳ Poczekaj {ec.format_time(remaining)}")
-            return
+        ec.remove_money(interaction.user.id, amount)
+        ec.set_cooldown(user_id, "crime")
+        await interaction.response.send_message(f"Nie udało się! {interaction.user.mention} stracił/a {amount}!")
 
-@bot.command()
-async def bal(ctx):
-    balance = ec.get_balance(ctx.author.id)
-    await ctx.send(f"{ctx.author.mention} ma na koncie {balance}")
+@bot.tree.command(name="balance", description="Sprawdza stan konta")
+async def balance(interaction: discord.Interaction):
+    balance = ec.get_balance(interaction.user.id)
+    await interaction.response.send_message(f"{interaction.user.mention} ma na koncie {balance}")
 
-@bot.command()
-@commands.cooldown(1, 86400, commands.BucketType.user)
-async def daily(ctx):
+@bot.tree.command(name="daily", description="Odbierz dzienną nagrodę")
+async def daily(interaction: discord.Interaction):
+    user_id = interaction.user.id
+    cooldown = 86400
+
+    remaining = ec.check_cooldown(user_id, "daily", cooldown)
+    if remaining > 0:
+        await interaction.response.send_message(f"⏳ Poczekaj jeszcze **{ec.format_time(remaining)}**", ephemeral=True)
+        return
+    
     amount = 500
-    ec.add_money(ctx.author.id, amount)
-    await ctx.send(f"{ctx.author.mention} odebrał codzienną nagrodę!")
-@daily.error
-async def daily_error(ctx, error):
-    if isinstance(error, commands.CommandOnCooldown):
-        remaining = ec.check_cooldown(ctx.author.id, "daily", 86400)
-        if remaining > 0:
-            await ctx.send(f"⏳ Poczekaj {ec.format_time(remaining)}")
-            return
+    ec.add_money(user_id, amount)
+    ec.set_cooldown(user_id, "daily")
+    await interaction.response.send_message(f"{interaction.user.mention} odebrał codzienną nagrodę!")
 
-@bot.command()
-async def top(ctx):
+@bot.tree.command(name="leaderboard", description="Pokauje 10 najbogatszych graczy na serwerze")
+async def leaderboard(interaction: discord.Interaction):
     data = ec.get_leaderboard()
-
     if not data:
-        await ctx.send("Brak danych")
+        await interaction.response.send_message("Brak danych", ephemeral=True)
         return
 
     embed = discord.Embed(title="TOP 10 Najbogatszych", color=discord.Color.gold())
-
     for i, (user_id, balance) in enumerate(data, start=1):
         user = bot.get_user(user_id)
         name = user.name if user else f"ID {user_id}"
         embed.add_field(name=f"{i}. {name}", value=f"💰 {balance}", inline=False)
 
-    await ctx.send(embed=embed)
+    await interaction.response.send_message(embed=embed)
 
-@bot.command()
-async def shop(ctx):
-    with sq.connect("economy.db") as eco:
-        c = eco.cursor()
-        c.execute("SELECT item, price FROM shop")
-        items = c.fetchall()
+@bot.tree.command(name="shop", description="Pokazuje sklep")
+async def shop(interaction: discord.Interaction):
+    items = ec.return_items()
+    text = ""
+    for item, price in items.items():
+        text += f"**{item}** — {price}💰\n"
 
-    text = "\n".join(f"🛒 **{i}** — {p}💰" for i, p in items)
-    await ctx.send(f"🛍️ **Sklep**\n{text}")
+    await interaction.response.send_message(embed=discord.Embed(title="🛒 Sklep", description=text))
 
-@bot.command()
-async def buy(ctx, item: str):
-    with sq.connect("economy.db") as eco:
-        c = eco.cursor()
+@bot.tree.command(name="buyitem", description="Kupuje przedmiot ze sklepu")
+@app_commands.describe(item="Wybierz przedmiot")
+@app_commands.choices(item=ec.get_item_choices())
+async def buyitem(interaction: discord.Interaction, item: app_commands.Choice[str]):
+    items = ec.return_items()
+    item = item.value
 
-        c.execute("SELECT price FROM shop WHERE item = ?", (item,))
-        result = c.fetchone()
+    if item not in items:
+        print(item)
+        await interaction.response.send_message("❌ Nie ma takiego itemu", ephemeral=True)
+        return
 
-        if not result:
-            await ctx.send("❌ Taki przedmiot nie istnieje")
-            return
+    price = items[item]
+    balance = ec.get_balance(interaction.user.id)
 
-        price = result[0]
-        balance = ec.get_balance(ctx.author.id)
+    if balance < price:
+        await interaction.response.send_message("❌ Nie masz wystarczająco pieniędzy", ephemeral=True)
+        return
 
-        if balance < price:
-            await ctx.send("❌ Nie masz tyle pieniędzy")
-            return
-
-        ec.remove_money(ctx.author.id, price)
-        await ctx.send(f"✅ Kupiłeś **{item}** za {price}💰")
+    ec.remove_money(interaction.user.id, price)
+    await interaction.response.send_message(f"✅ Kupiłeś **{item}** za {price}💰")
 
 if botToken:
     bot.run(botToken, log_handler=botHandler, log_level=logging.DEBUG)

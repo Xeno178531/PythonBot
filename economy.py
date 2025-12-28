@@ -3,6 +3,7 @@ import sqlite3 as sq
 import os
 import config
 from discord.ext import commands
+from discord import app_commands
 import time
 import random
 
@@ -24,6 +25,7 @@ def format_time(seconds):
 
 c.execute("""CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY, balance INTEGER DEFAULT 0)""")
 c.execute("""CREATE TABLE IF NOT EXISTS cooldowns (user_id INTEGER, command TEXT, last_used INTEGER)""")
+c.execute("""CREATE TABLE IF NOT EXISTS shop (item TEXT PRIMARY KEY, price INTEGER)""")
 ec.commit()
 
 def get_or_create_user_ec(user_id: int):
@@ -67,25 +69,21 @@ def get_leaderboard(limit=10):
     c.execute("SELECT user_id, balance FROM users ORDER BY balance DESC LIMIT ?", (limit,))
     return c.fetchall()
 
+def add_item(item, price):
+    c.execute("INSERT OR REPLACE INTO shop VALUES (?, ?)", (item, price))
+    ec.commit()        
+
 def check_cooldown(user_id, command, seconds):
     now = int(time.time())
 
-    with sq.connect("economy.db") as db:
-        c = db.cursor()
-        c.execute(
-            "SELECT last_used FROM cooldowns WHERE user_id=? AND command=?",
-            (user_id, command)
-        )
-        row = c.fetchone()
+    c.execute("SELECT last_used FROM cooldowns WHERE user_id=? AND command=?", (user_id, command))
+    row = c.fetchone()
 
-        if row:
-            diff = now - row[0]
-            if diff < seconds:
-                return seconds - diff
+    if row:
+        diff = now - row[0]
+        if diff < seconds:
+            return seconds - diff
 
-        c.execute(
-            "REPLACE INTO cooldowns VALUES (?, ?, ?)",
-            (user_id, command, now)
-        )
-        db.commit()
-        return 0
+    c.execute("REPLACE INTO cooldowns VALUES (?, ?, ?)", (user_id, command, now))
+    ec.commit()
+    return 0

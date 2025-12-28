@@ -3,11 +3,14 @@ import os
 import discord
 import config
 import leveling_system as ls
-import sqlite3
+import sqlite3 as sq
 import economy as ec
 import random
+import json
+import psutil
 from datetime import datetime
 from discord.ext import commands
+from discord import app_commands
 from dotenv import load_dotenv
 from discordLevelingSystem import LevelUpAnnouncement
 
@@ -23,9 +26,27 @@ intents.message_content = True
 intents.members = True
 intents.guilds = True
 
-bot = commands.Bot(command_prefix='?', intents=intents,)
+bot = commands.Bot(command_prefix='.', intents=intents,)
 print("Poprawnie zainicjowano moduł bota.")
 
+#Pilk konfiguracyjny + Cytaty
+CONFIG_FILE = "config.json"
+QUOTES_FILE = "quotes.json"
+
+def load_config():
+    with open(CONFIG_FILE, "r") as f:
+        return json.load(f)
+
+def save_config(data):
+    with open(CONFIG_FILE, "w") as f:
+        json.dump(data, f, indent=4)
+
+def load_quotes():
+    with open(QUOTES_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
+quotesls = load_quotes()
+
+#Eventy
 @bot.event
 async def on_ready():
     print('------')
@@ -43,6 +64,59 @@ async def on_ready():
 async def on_message(message):
     await bot.process_commands(message)
     await ls.lvlMain.award_xp(amount=[15, 25], message=message, refresh_name=True)  #Add EXP
+
+@bot.event
+async def on_member_join(member):
+    guild = member.guild
+    humans = sum(1 for m in guild.members if not m.bot)
+    embed = discord.Embed(title=f"Wtaj towarzyszu {member.mention}", description="Powiem wprost. Jest was za dużo. Zrobię wszystko co w mojej mocy aby się was pozbyć. Zawarłem pakt z matematyczką, I ona mi w tym pomoże.", color=0x00f51d)
+    if int(humans) > 4:
+        embed.set_author(name=f"Na serwerze jest {humans} osób.")
+    else:
+        embed.set_author(name=f"Na serwerze są {humans} osoby.")
+    embed.set_image(url="https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExbHhqNTUzY20xc2JoY2M0djFqNHJoMTJrbGM3djlrNTB4aG9icGY3YyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/I52WlfRLfsiXCURsgp/giphy.gif")
+    channel_id = load_config().get("notifications_channel_id")
+
+    if channel_id is None:
+        return
+
+    channel = member.guild.get_channel(channel_id)
+    if channel:
+        await channel.send(embed=embed)
+
+@bot.event
+async def on_member_remove(member):
+    guild = member.guild
+    humans = sum(1 for m in guild.members if not m.bot)
+    embed = discord.Embed(title=f"Żegnaj towarzyszu {member.mention}", description="Jednego mniej", color=0x00f51d)
+    if int(humans) > 4: 
+        embed.set_author(name=f"Na serwerze jest {humans} osób.")
+    else:
+        embed.set_author(name=f"Na serwerze są {humans} osoby.")
+    embed.set_image(url="https://media4.giphy.com/media/v1.Y2lkPTc5MGI3NjExbHhqNTUzY20xc2JoY2M0djFqNHJoMTJrbGM3djlrNTB4aG9icGY3YyZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/I52WlfRLfsiXCURsgp/giphy.gif")
+    channel_id = load_config().get("notifications_channel_id")
+
+    if channel_id is None:
+        return
+
+    channel = member.guild.get_channel(channel_id)
+    if channel:
+        await channel.send(embed=embed)
+
+#Komendy
+@bot.tree.command(name="quotes", description="Pokazuje losowy cytat")
+async def quotes(interaction: discord.Interaction):
+    embed = discord.Embed(title="Cytat", description=random.choice(quotesls), color=0x3d35db)
+    await interaction.response.send_message(embed=embed)
+
+@bot.tree.command(name="botinfo", description="Pokazuje informacje o bocie")
+async def botinfo(interaction: discord.Interaction):
+    mem = psutil.virtual_memory()
+    percent_ram = mem.percent
+    percent_cpu = psutil.cpu_percent(interval=True)
+    ping = round(bot.latency*1000)
+    embed = discord.Embed(title="📚 Info", description=f"🏓 Ping: **{ping}ms**\n🧠 Użycie RAM: **{percent_ram}%**\n⚙️ Użycie CPU: **{percent_cpu}%**", color=0xf50000)
+    await interaction.response.send_message(embed=embed)
 
 @bot.tree.command(
     name="hello",
@@ -108,13 +182,30 @@ async def lvl_top_command(interactions: discord.Interaction):
         # noinspection PyUnresolvedReferences
         await interactions.response.send_message(data) #Topka
 
-if botToken:
-    bot.run(botToken, log_handler=botHandler, log_level=logging.DEBUG)
-    print("Poprawnie zainicjowano token bota")
-else:
-    print("❌ Błąd: Nie znaleziono tokenu DISCORD_TOKEN")
-    print("Dodaj token do pliku .env lub zmiennych środowiskowych")
+@bot.tree.command(name="serverinfo", description="Pokazuje informacje o serwerze")
+async def serverinfo(interaction: discord.Interaction):
+    guild = interaction.guild
+    humans = sum(1 for m in guild.members if not m.bot)
+    bots = sum(1 for m in guild.members if m.bot)
+    count = guild.member_count
+    embed = discord.Embed(title="Serwer Info", description=f"Łączna liczba członków: {count}\nLiczba ludzi: {humans}\nLiczba botów: {bots}")
+    await interaction.response.send_message(embed=embed)
 
+@bot.tree.command(name="setnotifications", description="Ustaw kanał powitań/pożegnań")
+@app_commands.checks.has_permissions(administrator=True)
+async def setnotifications(interaction: discord.Interaction, channel: discord.TextChannel):
+    config = load_config()
+    config["notifications_channel_id"] = channel.id
+    save_config(config)
+    await interaction.response.send_message(f"✅ Kanał powitań/pożegnań ustawiony na {channel.mention}", ephemeral=True)
+
+@bot.tree.command(name="additem", description="Dodaje przedmiot do sklepu")
+@app_commands.checks.has_permissions(administrator=True)
+async def additem(interaction: discord.Interaction, name: str, price:str):
+    ec.add_item(name, price)
+    await interaction.response.send_message(f"Przedmiot {name} został dodany do sklepu!")
+
+#Ekonomia
 @bot.command()
 @commands.cooldown(1, 60, commands.BucketType.user)
 async def job(ctx):
@@ -182,3 +273,42 @@ async def top(ctx):
         embed.add_field(name=f"{i}. {name}", value=f"💰 {balance}", inline=False)
 
     await ctx.send(embed=embed)
+
+@bot.command()
+async def shop(ctx):
+    with sq.connect("economy.db") as eco:
+        c = eco.cursor()
+        c.execute("SELECT item, price FROM shop")
+        items = c.fetchall()
+
+    text = "\n".join(f"🛒 **{i}** — {p}💰" for i, p in items)
+    await ctx.send(f"🛍️ **Sklep**\n{text}")
+
+@bot.command()
+async def buy(ctx, item: str):
+    with sq.connect("economy.db") as eco:
+        c = eco.cursor()
+
+        c.execute("SELECT price FROM shop WHERE item = ?", (item,))
+        result = c.fetchone()
+
+        if not result:
+            await ctx.send("❌ Taki przedmiot nie istnieje")
+            return
+
+        price = result[0]
+        balance = ec.get_balance(ctx.author.id)
+
+        if balance < price:
+            await ctx.send("❌ Nie masz tyle pieniędzy")
+            return
+
+        ec.remove_money(ctx.author.id, price)
+        await ctx.send(f"✅ Kupiłeś **{item}** za {price}💰")
+
+if botToken:
+    bot.run(botToken, log_handler=botHandler, log_level=logging.DEBUG)
+    print("Poprawnie zainicjowano token bota")
+else:
+    print("❌ Błąd: Nie znaleziono tokenu DISCORD_TOKEN")
+    print("Dodaj token do pliku .env lub zmiennych środowiskowych")

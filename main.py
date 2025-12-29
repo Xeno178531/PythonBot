@@ -1,32 +1,26 @@
-import logging
-import os
-import discord
-import config
-import leveling_system as ls
-import sqlite3 as sq
-import economy as ec
-import random
-import json
-import psutil
+import logging,\
+    os,\
+    discord,\
+    discord.ext,\
+    leveling_system as ls,\
+    economy as ec,\
+    random,\
+    json
 from datetime import datetime
 from discord.ext import commands
 from discord import app_commands
 from dotenv import load_dotenv
-from discordLevelingSystem import LevelUpAnnouncement
-
-
 
 load_dotenv()
 botToken = os.getenv('DISCORD_TOKEN')
-botHandler = logging.FileHandler(filename='discord.log',
-                                 encoding='utf-8',
-                                 mode='w')
+botHandler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
+
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 intents.guilds = True
 
-bot = commands.Bot(command_prefix='.', intents=intents,)
+bot = commands.Bot(command_prefix='.', intents=intents)
 print("Poprawnie zainicjowano moduł bota.")
 
 #Pilk konfiguracyjny + Cytaty
@@ -34,16 +28,16 @@ CONFIG_FILE = "config.json"
 QUOTES_FILE = "quotes.json"
 
 def load_config():
-    with open(CONFIG_FILE, "r") as f:
-        return json.load(f)
+    with open(CONFIG_FILE, "r") as file:
+        return json.load(file)
 
 def save_config(data):
-    with open(CONFIG_FILE, "w") as f:
-        json.dump(data, f, indent=4)
+    with open(CONFIG_FILE, "w") as file:
+        json.dump(data, file, indent=4)
 
 def load_quotes():
-    with open(QUOTES_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
+    with open(QUOTES_FILE, "r", encoding="utf-8") as file:
+        return json.load(file)
 quotesls = load_quotes()
 
 #Eventy
@@ -58,7 +52,7 @@ async def on_ready():
     print(f'✅ Zalogowano jako: {bot.user.name}')
     print(f'🆔 ID bota: {bot.user.id}')
     print(f'🌐 Serwery: {len(bot.guilds)}')
-    print('------') #On Ready
+    print('------')
 
 @bot.event
 async def on_message(message):
@@ -69,7 +63,7 @@ async def on_message(message):
 async def on_member_join(member):
     guild = member.guild
     humans = sum(1 for m in guild.members if not m.bot)
-    embed = discord.Embed(title=f"Wtaj towarzyszu {member.mention}", description="Powiem wprost. Jest was za dużo. Zrobię wszystko co w mojej mocy aby się was pozbyć. Zawarłem pakt z matematyczką, I ona mi w tym pomoże.", color=0x00f51d)
+    embed = discord.Embed(title=f"Witaj towarzyszu {member.mention}", description="Powiem wprost. Jest was za dużo. Zrobię wszystko co w mojej mocy aby się was pozbyć. Zawarłem pakt z matematyczką, I ona mi w tym pomoże.", color=0x00f51d)
     if int(humans) > 4:
         embed.set_author(name=f"Na serwerze jest {humans} osób.")
     else:
@@ -104,24 +98,18 @@ async def on_member_remove(member):
         await channel.send(embed=embed)
 
 #Komendy
-@bot.tree.command(
-    name="hello",
-    description="Powiedz cześć!")
+@bot.tree.command(name="hello", description="Powiedz cześć!")
 async def hello_command(interaction: discord.Interaction):
     # noinspection PyUnresolvedReferences
     await interaction.response.send_message(f"Cześć {interaction.user.mention}! 👋")  #Hello
 
-@bot.tree.command(
-    name="ping",
-    description="Wyświetla ping użytkownika")
-async def ping(interaction: discord.Interaction):
+@bot.tree.command(name="ping", description="Wyświetla ping użytkownika")
+async def ping_command(interaction: discord.Interaction):
     latency = round(bot.latency * 1000)  # Konwersja na milisekundy
     # noinspection PyUnresolvedReferences
     await interaction.response.send_message(f'🏓 Pong! Opóźnienie: {latency}ms') #Ping
 
-@bot.tree.command(
-    name="pomoc",
-    description="Wyświetla pomoc")
+@bot.tree.command(name="pomoc", description="Wyświetla pomoc")
 async def help_command(interaction: discord.Interaction):
     embed = discord.Embed(title="Pomoc",
                           description="**Znajdziesz tu informacje o bocie i jego komendach**\n** **",
@@ -150,26 +138,79 @@ async def help_command(interaction: discord.Interaction):
     # noinspection PyUnresolvedReferences
     await interaction.response.send_message(embed=embed) #Pomoc
 
-@bot.tree.command(
-    name="poziom",
-    description="Wyświetla twój aktualny poziom"
-)
-async def level_command(interactions:discord.Interaction):
-    data = await ls.lvlMain.get_data_for(interactions.user)
+@bot.tree.command(name="poziom", description="Wyświetla twój aktualny poziom")
+async def level_command(interaction:discord.Interaction):
+    data = await ls.lvlMain.get_data_for(interaction.user)
     # noinspection PyUnresolvedReferences
-    await interactions.response.send_message(f"poziom: {data.level}, znajdujesz się na {data.rank} miejscu.") #Poziom
+    await interaction.response.send_message(f"poziom: {data.level}, znajdujesz się na {data.rank} miejscu.") #Poziom
 
-@bot.tree.command(
-    name="topka",
-    description="Wyświetla listę członków z najwyższymi poziomami."
-)
-async def lvl_top_command(interactions: discord.Interaction):
-        data = await ls.lvlMain.each_member_data(interactions.guild, sort_by='rank')
-        # noinspection PyUnresolvedReferences
-        await interactions.response.send_message(data) #Topka
 
-@bot.tree.command(name="poll", description="Tworzy ankiete")
-async def poll(interaction: discord.Interaction, title: str, question: str):
+@bot.tree.command(name="topka", description="Wyświetla listę członków z najwyższymi poziomami.")
+async def lvl_top_command(interaction: discord.Interaction):
+    members_data = await ls.lvlMain.each_member_data(interaction.guild, sort_by='rank', limit=10)
+    if not members_data:
+        await interaction.response.send_message("❌ Brak danych w rankingu!")
+        return
+    embed = discord.Embed(title=f"🏆 Top 10 - Ranking poziomów", description=f"Ranking członków serwera **{interaction.guild.name}**", color=discord.Color.gold(), timestamp=interaction.created_at)
+    embed.set_author(name=f"Ranking • {interaction.user.display_name}", icon_url=interaction.user.display_avatar.url)
+    ranking_text = ""
+
+    for i, member_data in enumerate(members_data, start=1):
+        place_emoji = ["🥇", "🥈", "🥉", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"][i - 1]
+        ranking_text += (
+            f"{place_emoji} **{member_data.name}**\n"
+            f"```diff\n"
+            f"+ Poziom: {member_data.level} | XP: {member_data.xp}/{ls.lvlMain.get_xp_for_level(member_data.level + 1)}\n"
+            f"+ Całkowite XP: {member_data.total_xp} | Miejsce: #{member_data.rank}\n"
+            f"```\n")
+    embed.add_field(name="📊 Ranking", value=ranking_text if ranking_text else "Brak danych", inline=False)
+
+    total_members = len(members_data)
+    avg_level = sum(md.level for md in members_data) / total_members if total_members > 0 else 0
+
+    embed.add_field(
+        name="📈 Statystyki",
+        value=(
+            f"```yaml\n"
+            f"Członkowie w rankingu: {total_members}\n"
+            f"Średni poziom: {avg_level:.1f}\n"
+            f"Najwyższy poziom: {members_data[0].level if members_data else 0}\n"
+            f"```"
+        ),
+        inline=True
+    )
+
+    # Sprawdź gdzie jest obecny użytkownik
+    user_rank = None
+    for member_data in members_data:
+        if member_data.id_number == interaction.user.id:
+            user_rank = member_data.rank
+            break
+
+    if user_rank:
+        embed.add_field(
+            name="👤 Twoja pozycja",
+            value=(
+                f"```diff\n"
+                f"+ Miejsce: #{user_rank}\n"
+                f"```"
+            ),
+            inline=True
+        )
+
+    # Stopka
+    embed.set_footer(
+        text=f"Ranking aktualny na • {interaction.guild.name}",
+        icon_url=interaction.guild.icon.url if interaction.guild.icon else None
+    )
+
+    # Obrazek
+    embed.set_thumbnail(url="https://i.imgur.com/vKeFJI1.jpeg")
+
+    await interaction.response.send_message(embed=embed)
+
+@bot.tree.command(name="ankieta", description="Tworzy nową ankietę")
+async def poll_command(interaction: discord.Interaction, title: str, question: str):
     embed = discord.Embed(title=title, description=question)
     embed.set_footer(text=f"Ankiete utworzył {interaction.user}")
     await interaction.response.send_message(embed=embed)
@@ -177,8 +218,8 @@ async def poll(interaction: discord.Interaction, title: str, question: str):
     await poll_msg.add_reaction("👍")
     await poll_msg.add_reaction("👎")
 
-@bot.tree.command(name="quote", description="Tworzy cytat")
-async def quote(interaction: discord.Interaction, quote: str):
+@bot.tree.command(name="cytat-nowy", description="Stwórz nowy cytat")
+async def quote_command(interaction: discord.Interaction, quote: str):
     embed = discord.Embed(title="Cytat", description=quote, color=0x3d35db)
     await interaction.response.send_message(embed=embed)
     quote_msg = await interaction.original_response()
@@ -186,22 +227,22 @@ async def quote(interaction: discord.Interaction, quote: str):
     await quote_msg.add_reaction("💀")
     await quote_msg.add_reaction("🤮")
 
-@bot.tree.command(name="quotes", description="Pokazuje losowy cytat")
-async def quotes(interaction: discord.Interaction):
+@bot.tree.command(name="cytat-random", description="Wyświetla losowy cytat")
+async def quotes_command(interaction: discord.Interaction):
     embed = discord.Embed(title="Cytat", description=random.choice(quotesls), color=0x3d35db)
     await interaction.response.send_message(embed=embed)
 
-@bot.tree.command(name="botinfo", description="Pokazuje informacje o bocie")
-async def botinfo(interaction: discord.Interaction):
+@bot.tree.command(name="info-bot", description="Pokazuje informacje o bocie")
+async def botinfo_command(interaction: discord.Interaction):
     mem = psutil.virtual_memory()
     percent_ram = mem.percent
     percent_cpu = psutil.cpu_percent(interval=True)
-    ping = round(bot.latency*1000)
-    embed = discord.Embed(title="📚 Info", description=f"🏓 Ping: **{ping}ms**\n🧠 Użycie RAM: **{percent_ram}%**\n⚙️ Użycie CPU: **{percent_cpu}%**", color=0xf50000)
+    server_ping = round(bot.latency * 1000)
+    embed = discord.Embed(title="📚 Info", description=f"🏓 Ping: **{server_ping}ms**\n🧠 Użycie RAM: **{percent_ram}%**\n⚙️ Użycie CPU: **{percent_cpu}%**", color=0xf50000)
     await interaction.response.send_message(embed=embed)
 
-@bot.tree.command(name="serverinfo", description="Pokazuje informacje o serwerze")
-async def serverinfo(interaction: discord.Interaction):
+@bot.tree.command(name="info-serwer", description="Pokazuje informacje o serwerze")
+async def serverinfo_command(interaction: discord.Interaction):
     guild = interaction.guild
     humans = sum(1 for m in guild.members if not m.bot)
     bots = sum(1 for m in guild.members if m.bot)
@@ -209,17 +250,17 @@ async def serverinfo(interaction: discord.Interaction):
     embed = discord.Embed(title="Serwer Info", description=f"Łączna liczba członków: {count}\nLiczba ludzi: {humans}\nLiczba botów: {bots}")
     await interaction.response.send_message(embed=embed)
 
-@bot.tree.command(name="setnotifications", description="Ustaw kanał powitań/pożegnań")
+@bot.tree.command(name="channel", description="Ustaw kanał powitań/pożegnań")
 @app_commands.checks.has_permissions(administrator=True)
-async def setnotifications(interaction: discord.Interaction, channel: discord.TextChannel):
+async def setnotifications_command(interaction: discord.Interaction, channel: discord.TextChannel):
     config = load_config()
     config["notifications_channel_id"] = channel.id
     save_config(config)
     await interaction.response.send_message(f"✅ Kanał powitań/pożegnań ustawiony na {channel.mention}", ephemeral=True)
 
 #Ekonomia
-@bot.tree.command(name="work", description="Zarabiasz gotówke serwerową")
-async def work(interaction: discord.Interaction):
+@bot.tree.command(name="work", description="Zarabiasz gotówkę serwerową")
+async def work_command(interaction: discord.Interaction):
     user_id = interaction.user.id
     cooldown = 60
 
@@ -275,7 +316,7 @@ async def daily(interaction: discord.Interaction):
     ec.set_cooldown(user_id, "daily")
     await interaction.response.send_message(f"{interaction.user.mention} odebrał codzienną nagrodę!")
 
-@bot.tree.command(name="leaderboard", description="Pokauje 10 najbogatszych graczy na serwerze")
+@bot.tree.command(name="leaderboard", description="Pokazuje 10 najbogatszych graczy na serwerze")
 async def leaderboard(interaction: discord.Interaction):
     data = ec.get_leaderboard()
     if not data:
@@ -322,7 +363,9 @@ async def buyitem(interaction: discord.Interaction, item: app_commands.Choice[st
     await interaction.response.send_message(f"✅ Kupiłeś **{item}** za {price}💰")
 
 if botToken:
-    bot.run(botToken, log_handler=botHandler, log_level=logging.DEBUG)
+    bot.run(botToken,
+            log_handler=botHandler,
+            log_level=logging.DEBUG)
     print("Poprawnie zainicjowano token bota")
 else:
     print("❌ Błąd: Nie znaleziono tokenu DISCORD_TOKEN")

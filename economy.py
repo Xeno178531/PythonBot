@@ -1,11 +1,8 @@
-import discord
 import sqlite3 as sq
 import os
 import config
-from discord.ext import commands
 from discord import app_commands
 import time
-import random
 
 ecDbFile = os.path.join(config.DATABASE_DIR,'EconomySystem.db')
 
@@ -96,7 +93,7 @@ def check_cooldown(user_id, command, seconds):
     row = c.fetchone()
 
     if not row:
-        return 0  # brak cooldownu
+        return 0  # brak cool downu
 
     diff = now - row[0]
     if diff < seconds:

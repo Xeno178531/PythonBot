@@ -1,13 +1,12 @@
 import discord
 import os
-import config
 from datetime import datetime
 from discordLevelingSystem import DiscordLevelingSystem, LevelUpAnnouncement, RoleAward
 
 
 # Leveling
 lvlDefaultMentions = discord.AllowedMentions()
-lvlDbFile = os.path.join(config.DATABASE_DIR,'DiscordLevelingSystem.db')
+lvlDbFile = os.path.join('Data', 'DiscordLevelingSystem.db')
 lvlMainGuild = 1452724850149036145
 lvlAwards = {
     lvlMainGuild: [
@@ -45,18 +44,18 @@ lvlMain = DiscordLevelingSystem(rate=1,
 #                                    delete_after=None,
 #                                    )
 
-if not os.path.exists(config.DATABASE_DIR):
-    os.makedirs(config.DATABASE_DIR)
-    print(f"Utworzono katalog: {config.DATABASE_DIR}")
+if not os.path.exists('Data'):
+    os.makedirs('Data')
+    print(f"Utworzono katalog: {'Data'}")
 else:
-    print(f"Katalog baz danych: {config.DATABASE_DIR} istnieję - pomijam")
+    print(f"Katalog baz danych: {'Data'} istnieję - pomijam")
     
 if not os.path.exists(lvlDbFile):
     print("Tworzę nową bazę danych...")
-    lvlMain.create_database_file(config.DATABASE_DIR)
+    lvlMain.create_database_file('Data')
     print(f"Utworzono: {lvlDbFile}")
 else:
-    print(f"Katalog baz danych: {config.DATABASE_DIR} istnieję - pomijam")
+    print(f"Katalog baz danych: {'Data'} istnieję - pomijam")
 
 print("🔧 Tworzę instancję systemu poziomów...")
 print(f"🔗 Łączę się z bazą: {lvlDbFile}")

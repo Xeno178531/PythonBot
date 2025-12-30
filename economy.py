@@ -1,18 +1,17 @@
 import sqlite3 as sq
 import os
-import config
 from discord import app_commands
 import time
 
-ecDbFile = os.path.join(config.DATABASE_DIR,'EconomySystem.db')
+ecDbFile = os.path.join('Data/', 'EconomySystem.db')
 
-ec = sq.connect(ecDbFile)
-c = ec.cursor()
+ecMain = sq.connect(ecDbFile)
+c = ecMain.cursor()
 
 items = {
     "vip": 1000,
     "miecz": 500,
-    "luckybox": 300
+    "Quickblox": 300
 }
 
 def format_time(seconds):
@@ -28,7 +27,7 @@ def format_time(seconds):
 
 c.execute("CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY, balance INTEGER DEFAULT 0)")
 c.execute("CREATE TABLE IF NOT EXISTS cooldowns (user_id INTEGER, command TEXT, last_used INTEGER, PRIMARY KEY (user_id, command))")
-ec.commit()
+ecMain.commit()
 
 def get_item_choices():
     return [
@@ -41,7 +40,7 @@ def get_item_choices():
 
 def get_or_create_user_ec(user_id: int):
     c.execute("INSERT OR IGNORE INTO users (user_id) VALUES (?)", (user_id,))
-    ec.commit()
+    ecMain.commit()
 
 def add_money(user_id: int, amount: int):
     c.execute("SELECT balance FROM users WHERE user_id = ?", (user_id,))
@@ -53,7 +52,7 @@ def add_money(user_id: int, amount: int):
     else:
         c.execute("INSERT INTO users (user_id, balance) VALUES (?, ?)", (user_id, amount))
 
-    ec.commit()
+    ecMain.commit()
 
 def remove_money(user_id: int, amount: int):
     c.execute("SELECT balance FROM users WHERE user_id = ?", (user_id,))
@@ -65,7 +64,7 @@ def remove_money(user_id: int, amount: int):
     else:
         c.execute("INSERT INTO users (user_id, balance) VALUES (?, ?)", (user_id, amount))
 
-    ec.commit()
+    ecMain.commit()
 
 def get_balance(user_id: int):
     c.execute("SELECT balance FROM users WHERE user_id = ?", (user_id,))
@@ -108,7 +107,7 @@ def set_cooldown(user_id, command):
         "REPLACE INTO cooldowns (user_id, command, last_used) VALUES (?, ?, ?)",
         (user_id, command, now)
     )
-    ec.commit()
+    ecMain.commit()
 
 
         

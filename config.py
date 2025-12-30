@@ -1,1 +1,0 @@
-DATABASE_DIR = 'Data/'

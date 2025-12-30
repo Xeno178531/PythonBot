@@ -1,46 +1,62 @@
-import logging,\
-    os,\
-    discord,\
-    discord.ext,\
-    leveling_system as ls,\
-    economy as ec,\
-    random,\
-    json
+# ------| Importy/biblioteki |------
+import discord
+import discord.ext
+import economy as ec
+import json
+import leveling_system as ls
+import logging
+import os
+import random
 from datetime import datetime
-from discord.ext import commands
 from discord import app_commands
+from discord.ext import commands
 from dotenv import load_dotenv
 
+# ------| Ładowanie plików początkowych |------
 load_dotenv()
+confFile = "config.json"
 botToken = os.getenv('DISCORD_TOKEN')
-botHandler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
 
+# ------| Konfiguruj logowania |------
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s:%(levelname)s:%(name)s: %(message)s',
+    handlers=[
+        logging.FileHandler('discord.log', encoding='utf-8', mode='w'),
+        logging.StreamHandler()
+    ]
+)
+
+# ------| Intents |------
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 intents.guilds = True
 
+# ------| Inicjalizacja bota |------
+
 bot = commands.Bot(command_prefix='.', intents=intents)
 print("Poprawnie zainicjowano moduł bota.")
 
-#Pilk konfiguracyjny + Cytaty
-CONFIG_FILE = "config.json"
-QUOTES_FILE = "quotes.json"
+# ------| Cytaty |------
+
+quotesFile = "quotes.json"
 
 def load_config():
-    with open(CONFIG_FILE, "r") as file:
+    with open(confFile, "r") as file:
         return json.load(file)
 
 def save_config(data):
-    with open(CONFIG_FILE, "w") as file:
+    with open(confFile, "w") as file:
         json.dump(data, file, indent=4)
 
 def load_quotes():
-    with open(QUOTES_FILE, "r", encoding="utf-8") as file:
+    with open(quotesFile, "r", encoding="utf-8") as file:
         return json.load(file)
 quotesls = load_quotes()
 
-#Eventy
+# ------| Eventy |------
+
 @bot.event
 async def on_ready():
     print('------')
@@ -97,7 +113,8 @@ async def on_member_remove(member):
     if channel:
         await channel.send(embed=embed)
 
-#Komendy
+# ------| Komendy |------
+
 @bot.tree.command(name="hello", description="Powiedz cześć!")
 async def hello_command(interaction: discord.Interaction):
     # noinspection PyUnresolvedReferences
@@ -141,9 +158,7 @@ async def help_command(interaction: discord.Interaction):
 @bot.tree.command(name="poziom", description="Wyświetla twój aktualny poziom")
 async def level_command(interaction:discord.Interaction):
     data = await ls.lvlMain.get_data_for(interaction.user)
-    # noinspection PyUnresolvedReferences
     await interaction.response.send_message(f"poziom: {data.level}, znajdujesz się na {data.rank} miejscu.") #Poziom
-
 
 @bot.tree.command(name="topka", description="Wyświetla listę członków z najwyższymi poziomami.")
 async def lvl_top_command(interaction: discord.Interaction):
@@ -179,32 +194,21 @@ async def lvl_top_command(interaction: discord.Interaction):
         ),
         inline=True
     )
-
-    # Sprawdź gdzie jest obecny użytkownik
-    user_rank = None
-    for member_data in members_data:
-        if member_data.id_number == interaction.user.id:
-            user_rank = member_data.rank
-            break
-
+    user_data = await ls.lvlMain.get_data_for(interaction.user)
     if user_rank:
         embed.add_field(
             name="👤 Twoja pozycja",
             value=(
                 f"```diff\n"
-                f"+ Miejsce: #{user_rank}\n"
+                f"+ Miejsce: #{user_data.rank}\n"
                 f"```"
             ),
             inline=True
         )
-
-    # Stopka
     embed.set_footer(
         text=f"Ranking aktualny na • {interaction.guild.name}",
         icon_url=interaction.guild.icon.url if interaction.guild.icon else None
     )
-
-    # Obrazek
     embed.set_thumbnail(url="https://i.imgur.com/vKeFJI1.jpeg")
 
     await interaction.response.send_message(embed=embed)
@@ -258,7 +262,7 @@ async def setnotifications_command(interaction: discord.Interaction, channel: di
     save_config(config)
     await interaction.response.send_message(f"✅ Kanał powitań/pożegnań ustawiony na {channel.mention}", ephemeral=True)
 
-#Ekonomia
+# ------| Ekonomia |------
 @bot.tree.command(name="work", description="Zarabiasz gotówkę serwerową")
 async def work_command(interaction: discord.Interaction):
     user_id = interaction.user.id
@@ -298,8 +302,8 @@ async def crime(interaction: discord.Interaction):
 
 @bot.tree.command(name="balance", description="Sprawdza stan konta")
 async def balance(interaction: discord.Interaction):
-    balance = ec.get_balance(interaction.user.id)
-    await interaction.response.send_message(f"{interaction.user.mention} ma na koncie {balance}")
+    member_balance = ec.get_balance(interaction.user.id)
+    await interaction.response.send_message(f"{interaction.user.mention} ma na koncie {member_balance}")
 
 @bot.tree.command(name="daily", description="Odbierz dzienną nagrodę")
 async def daily(interaction: discord.Interaction):
@@ -324,10 +328,10 @@ async def leaderboard(interaction: discord.Interaction):
         return
 
     embed = discord.Embed(title="TOP 10 Najbogatszych", color=discord.Color.gold())
-    for i, (user_id, balance) in enumerate(data, start=1):
+    for i, (user_id, member_balance) in enumerate(data, start=1):
         user = bot.get_user(user_id)
         name = user.name if user else f"ID {user_id}"
-        embed.add_field(name=f"{i}. {name}", value=f"💰 {balance}", inline=False)
+        embed.add_field(name=f"{i}. {name}", value=f"💰 {member_balance}", inline=False)
 
     await interaction.response.send_message(embed=embed)
 
@@ -353,9 +357,9 @@ async def buyitem(interaction: discord.Interaction, item: app_commands.Choice[st
         return
 
     price = items[item]
-    balance = ec.get_balance(interaction.user.id)
+    member_balance = ec.get_balance(interaction.user.id)
 
-    if balance < price:
+    if member_balance < price:
         await interaction.response.send_message("❌ Nie masz wystarczająco pieniędzy", ephemeral=True)
         return
 
@@ -363,10 +367,7 @@ async def buyitem(interaction: discord.Interaction, item: app_commands.Choice[st
     await interaction.response.send_message(f"✅ Kupiłeś **{item}** za {price}💰")
 
 if botToken:
-    bot.run(botToken,
-            log_handler=botHandler,
-            log_level=logging.DEBUG)
-    print("Poprawnie zainicjowano token bota")
+    bot.run(token=botToken)
 else:
     print("❌ Błąd: Nie znaleziono tokenu DISCORD_TOKEN")
     print("Dodaj token do pliku .env lub zmiennych środowiskowych")

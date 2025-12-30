@@ -13,11 +13,13 @@ from discord.ext import commands
 from dotenv import load_dotenv
 
 # ------| Ładowanie plików początkowych |------
+
 load_dotenv()
 confFile = "config.json"
 botToken = os.getenv('DISCORD_TOKEN')
 
 # ------| Konfiguruj logowania |------
+
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s:%(levelname)s:%(name)s: %(message)s',
@@ -28,6 +30,7 @@ logging.basicConfig(
 )
 
 # ------| Intents |------
+
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
@@ -268,6 +271,7 @@ async def test_command(interaction: discord.Interaction):
     await interaction.response.send_message(url)
 
 # ------| Ekonomia |------
+
 @bot.tree.command(name="work", description="Zarabiasz gotówkę serwerową")
 async def work_command(interaction: discord.Interaction):
     user_id = interaction.user.id

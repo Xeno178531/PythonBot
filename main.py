@@ -195,7 +195,7 @@ async def lvl_top_command(interaction: discord.Interaction):
         inline=True
     )
     user_data = await ls.lvlMain.get_data_for(interaction.user)
-    if user_rank:
+    if user_data:
         embed.add_field(
             name="👤 Twoja pozycja",
             value=(
@@ -207,10 +207,10 @@ async def lvl_top_command(interaction: discord.Interaction):
         )
     embed.set_footer(
         text=f"Ranking aktualny na • {interaction.guild.name}",
-        icon_url=interaction.guild.icon.url if interaction.guild.icon else None
+        icon_url=bot.user.avatar
     )
-    embed.set_thumbnail(url="https://i.imgur.com/vKeFJI1.jpeg")
 
+    embed.set_thumbnail(url=str(interaction.guild.icon) if interaction.guild.icon else interaction.user.display_icon)
     await interaction.response.send_message(embed=embed)
 
 @bot.tree.command(name="ankieta", description="Tworzy nową ankietę")
@@ -261,6 +261,11 @@ async def setnotifications_command(interaction: discord.Interaction, channel: di
     config["notifications_channel_id"] = channel.id
     save_config(config)
     await interaction.response.send_message(f"✅ Kanał powitań/pożegnań ustawiony na {channel.mention}", ephemeral=True)
+
+@bot.tree.command(name="test", description="Komenda do testów.")
+async def test_command(interaction: discord.Interaction):
+    url = bot.user.avatar
+    await interaction.response.send_message(url)
 
 # ------| Ekonomia |------
 @bot.tree.command(name="work", description="Zarabiasz gotówkę serwerową")

@@ -72,7 +72,7 @@ class LvlSystem(commands.Cog):
             )
         embed.set_footer(
             text=f"Ranking aktualny na • {interaction.guild.name}",
-            icon_url=bot.user.avatar
+            icon_url=self.bot.user.avatar
         )
 
         embed.set_thumbnail(

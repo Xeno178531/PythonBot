@@ -14,6 +14,10 @@ class LvlSystem(commands.Cog):
     async def on_ready(self):
         print(f"✅ Moduł 'LvlSys' został załadowany!")
 
+    @bot.event
+    async def on_message(self, message):
+        await bot.process_commands(message)
+        await ls.lvlMain.award_xp(amount=[15, 25], message=message, refresh_name=True)  # Add EXP
 
     # =========== SLASH COMMANDS ===========
     @app_commands.command(name="poziom", description="Wyświetla twój aktualny poziom")

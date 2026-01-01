@@ -87,10 +87,6 @@ async def on_ready():
     print(f'🌐 Serwery: {len(bot.guilds)}')
     print('------')
 
-@bot.event
-async def on_message(message):
-    await bot.process_commands(message)
-    await ls.lvlMain.award_xp(amount=[15, 25], message=message, refresh_name=True)  #Add EXP
 
 @bot.event
 async def on_member_join(member):
